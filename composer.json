@@ -1,0 +1,17 @@
+{
+  "name": "Tempus",
+  "type": "library",
+  "description": "Time and Period management for PHP",
+  "keywords": ["time", "date", "period"],
+  "license": "MIT",
+  "authors": [
+    {"name": "Arsenio Siani", "email": "arsenio.siani@gmail.com"}
+  ],
+  "minimum-stability": "dev",
+  "require": {
+    "php": ">=5.4"
+  },
+  "autoload": {
+    "psr-0": { "Tempus\\": "src/" }
+  }
+}
