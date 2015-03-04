@@ -7,8 +7,11 @@ class DateTime
 
     function __construct($date)
     {
+        if(is_numeric($date)) {
+            $date = date("Y-m-d H:i:s", $date);
+        }
+
         $this->date = new \DateTime($date);
-        $this->date->setTime(0,0,0);
     }
 
     public function format($format)
@@ -40,6 +43,10 @@ class DateTime
     public function getDateTime()
     {
         return $this->date;
+    }
+
+    function __toString() {
+        return $this->format("Y-m-d H:i:s");
     }
 
 
