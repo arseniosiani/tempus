@@ -1,6 +1,8 @@
 <?php
 namespace Tempus;
 
+use Tempus\Holidays\HolidaysAbstract;
+
 class Period {
 
     /** @var DateTime */
@@ -9,8 +11,11 @@ class Period {
     private $to;
     private $day_saving_adjust = 0;
     private $exclude_adjust = 0;
-    private $dates_to_exclude = [];
+    /** @var Dates */
+    private $dates_to_exclude;
     private $week_mask = [1,1,1,1,1,1,1];
+    /** @var HolidaysAbstract  */
+    private $holidays_to_exclude = null;
 
 
     function __construct(DateTime $from, DateTime $to, $week_mask = [1,1,1,1,1,1,1])
@@ -18,6 +23,7 @@ class Period {
         $this->from = $from;
         $this->to = $to;
         $this->week_mask = $week_mask;
+        $this->dates_to_exclude = new Dates();
 
         if($this->from->format("I") != $this->to->format("I")) {
             $this->day_saving_adjust = 3600;
@@ -39,9 +45,14 @@ class Period {
         return $this;
     }
 
+    public function excludeHolidays(HolidaysAbstract $holydays)
+    {
+        $this->holidays_to_exclude = $holydays;
+    }
+
     public function excludeDate(Date $date)
     {
-        $this->dates_to_exclude[$date->format("Y-m-d")] = $date;
+        $this->dates_to_exclude->append($date);
         return $this;
     }
 
@@ -56,7 +67,15 @@ class Period {
         if($this->to instanceof Date)
             $tmp_ajust = 86400;
 
-        foreach($this->dates_to_exclude as $date_to_exclude) {
+        $dates_to_exclude = clone($this->dates_to_exclude);
+        if($this->holidays_to_exclude) {
+            $dates_to_exclude->addDates($this->holidays_to_exclude->getHolyDaysInYear($this->from->format("Y")));
+            if($this->from->format("Y") != $this->to->format("Y")) {
+                $dates_to_exclude->addDates($this->holidays_to_exclude->getHolyDaysInYear($this->to->format("Y")));
+            }
+        }
+
+        foreach($dates_to_exclude as $date_to_exclude) {
             /** @var Date $date_to_exclude */
             if($this->isDateIncluded($date_to_exclude)) {
                 $dow = $date_to_exclude->format("w");
@@ -67,23 +86,20 @@ class Period {
 
         $done = false;
         $tmp = clone($this->from);
-        $seconds_in_period = 0;
+        $num_days = 0;
         while(!$done) {
             $dow = $tmp->format("w");
             if($this->week_mask[$dow]) {
-                echo $tmp->format("Y-m-d")." ".$tmp->getLengthInSeconds()."\n";
-                $seconds_in_period += $tmp->getLengthInSeconds();
+                if(!$dates_to_exclude->contains($tmp))
+                    $num_days++;
             }
 
-
             $tmp->modify("+1 day");
-            if($tmp->getTimestamp() >= $this->to->getTimestamp())
+            if($tmp->getTimestamp() > $this->to->getTimestamp())
                 $done = true;
         }
 
-        //echo "($seconds_in_period + $tmp_ajust + ".$this->day_saving_adjust.")";
-        $this->day_saving_adjust = 0;
-        return ($seconds_in_period + $tmp_ajust + $this->day_saving_adjust) / 86400;
+        return $num_days;
     }
 
     public function getNumNights()
